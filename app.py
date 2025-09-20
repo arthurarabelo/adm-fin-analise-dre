@@ -67,24 +67,35 @@ def read_sheet():
                 st.error("Forneça dados válidos. Verifique se não esqueceu nenhuma célula em branco ou se os valores estão corretos.")
                 del st.session_state["dre_file"]
                 del st.session_state["balanco_file"]
+                return 0
         else:
             st.error("A extensão do arquivo deve ser .xlsx")
 
+def get_value(df: pd.DataFrame, row_name: str) -> float:
+    values = df.loc[df['Dados'] == row_name, "Valor"].values
+    if len(values) == 0:
+        raise ValueError(f"O dado '{row_name}' não foi encontrado na planilha.")
+    value = values[0]
+    if pd.isna(value):
+        raise ValueError(f"O dado '{row_name}' está vazio na planilha.")
+    return float(value)
+
 def get_sheets_data(dre_df: pd.DataFrame, balanco_df: pd.DataFrame) -> SheetInformation:
     return SheetInformation(
-        gross_operating_income = dre_df.loc[dre_df['Dados'] == "Receita Operacional Bruta", "Valor"].values,
-        liquid_profit = dre_df.loc[dre_df['Dados'] == "Lucro Líquido", "Valor"].values,
-        sales = dre_df.loc[dre_df['Dados'] == "Vendas", "Valor"].values,
-        operational_profit = dre_df.loc[dre_df['Dados'] == "Lucro Operacional", "Valor"].values,
-        asset = balanco_df.loc[balanco_df['Dados'] == "Ativo (total)", "Valor"].values,
-        current_asset = balanco_df.loc[balanco_df['Dados'] == "Ativo Não Circulante", "Valor"].values,
-        fix_asset = balanco_df.loc[balanco_df['Dados'] == "Ativo Circulante", "Valor"].values,
-        liabilities = balanco_df.loc[balanco_df['Dados'] == "Passivo (total)", "Valor"].values,
-        fix_liabilities = balanco_df.loc[balanco_df['Dados'] == "Passivo Não Circulante", "Valor"].values,
-        current_liabilities = balanco_df.loc[balanco_df['Dados'] == "Passivo Circulante", "Valor"].values,
-        inventory = balanco_df.loc[balanco_df['Dados'] == "Estoque", "Valor"].values,
-        net_worth = balanco_df.loc[balanco_df['Dados'] == "Patrimônio Líquido", "Valor"].values
+        gross_operating_income = get_value(dre_df, "Receita Operacional Bruta"),
+        liquid_profit          = get_value(dre_df, "Lucro Líquido"),
+        sales                  = get_value(dre_df, "Vendas"),
+        operational_profit     = get_value(dre_df, "Lucro Operacional"),
+        asset                  = get_value(balanco_df, "Ativo (total)"),
+        current_asset          = get_value(balanco_df, "Ativo Não Circulante"),
+        fix_asset              = get_value(balanco_df, "Ativo Circulante"),
+        liabilities            = get_value(balanco_df, "Passivo (total)"),
+        fix_liabilities        = get_value(balanco_df, "Passivo Não Circulante"),
+        current_liabilities    = get_value(balanco_df, "Passivo Circulante"),
+        inventory              = get_value(balanco_df, "Estoque"),
+        net_worth              = get_value(balanco_df, "Patrimônio Líquido"),
     )
+
 
 def get_computed_info(sheetInfo: SheetInformation) -> ComputedInformation:
     return ComputedInformation(
@@ -215,32 +226,58 @@ balanco_uploaded_file = st.session_state["balanco_file"]
 if st.button("Gerar análise"):
     if dre_uploaded_file and balanco_uploaded_file is not None:
         metricas = read_sheet()
-        indices = {
-            "Margem Líquida": "12%",
-            "Capital de Giro": "R$ 150.000",
-            "Liquidez Corrente": "1,8"
-        }
+        if metricas != 0:
+            indices = {
+                "Capital de Giro": f"R$ {metricas.floating_capital}",
+                "Necessidade de Capital de Giro": f"R$ {metricas.floating_capital_need}",
+                "Tesouraria": f"R$ {metricas.treasury}",
+                "Liquidez Geral": f"{metricas.general_liquidity}",
+                "Liquidez Corrente": f"{metricas.current_liquidity}",
+                "Liquidez Seca": f"{metricas.dry_liquidity}",
+                "Endividamento Geral": f"{metricas.general_indebtedness * 100} %",
+                "Composição do Endividamento": f"{metricas.debt_composition * 100} %",
+                "Margem Líquida": f"{metricas.liquid_margin * 100} %",
+                "Margem Operacional": f"{metricas.operational_margin * 100} %",
+                "Margem de Lucro Líquido": f"{metricas.liquid_profit_margin * 100} %",
+                "ROA (Retorno Sobre o Ativo)": f"{metricas.roa * 100} %",
+                "ROE (Retorno Sobre o PL)": f"{metricas.roe * 100} %",
+                "Giro dos Ativos": f"{metricas.assets_turnover}",
+                "Giro dos Ativos Fixos": f"{metricas.fix_assets_turnover}",
+                "Giro do Estoque": f"{metricas.inventory_turnover}",
+            }
 
-        explicacoes = {
-            "Margem Líquida": "Mostra quanto a empresa lucra para cada R$1 de receita líquida.",
-            "Capital de Giro": "Indica se a empresa consegue pagar dívidas de curto prazo.",
-            "Liquidez Corrente": "Mostra a relação entre ativos e passivos de curto prazo."
-        }
+            explicacoes = {
+                "Capital de Giro": f"",
+                "Necessidade de Capital de Giro": f"",
+                "Tesouraria": f"",
+                "Liquidez Geral": f"",
+                "Liquidez Corrente": f"",
+                "Liquidez Seca": f"",
+                "Endividamento Geral": f"",
+                "Composição do Endividamento": f"",
+                "Margem Líquida": f"",
+                "Margem Operacional": f"",
+                "Margem de Lucro Líquido": f"",
+                "ROA (Retorno Sobre o Ativo)": f"",
+                "ROE (Retorno Sobre o PL)": f"",
+                "Giro dos Ativos": f"",
+                "Giro dos Ativos Fixos": f"",
+                "Giro do Estoque": f"",
+            }
+            try:
+                progress_text = "Gerando sua análise..."
+                my_bar = st.progress(0, text=progress_text)
 
-        try:
-            progress_text = "Gerando sua análise..."
-            my_bar = st.progress(0, text=progress_text)
+                for percent_complete in range(100):
+                    time.sleep(0.01)
+                    my_bar.progress(percent_complete + 1, text=progress_text)
+                time.sleep(1)
+                my_bar.empty()
 
-            for percent_complete in range(100):
-                time.sleep(0.01)
-                my_bar.progress(percent_complete + 1, text=progress_text)
-            time.sleep(1)
-            my_bar.empty()
-
-            gerar_pdf(indices, explicacoes, "relatorio.pdf")
-            with open("relatorio.pdf", "rb") as f:
-                st.download_button("📥 Baixar Relatório", f,  file_name="relatorio.pdf")
-        except:
-            st.error("Erro ao gerar a análise. Verifique se seguiu todos os passos corretamente.")
+                gerar_pdf(indices, explicacoes, "relatorio.pdf")
+                with open("relatorio.pdf", "rb") as f:
+                    st.download_button("📥 Baixar Relatório", f,  file_name="relatorio.pdf")
+            except:
+                st.error("Erro ao gerar a análise. Verifique se seguiu todos os passos corretamente.")
     else:
         st.error("Anexe primeiro as planilhas.")
